@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2020 NXP.
+ * Copyright 2000, 2024 NXP.
  *
  * Author: Anson Huang <Anson.Huang@nxp.com>
  */
@@ -15,6 +15,10 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/thermal.h>
+
+#ifdef CONFIG_IMX8MM_THERMAL_MONITOR
+#include <linux/imx8mm_thermal.h>
+#endif
 
 #include "thermal_core.h"
 
@@ -72,6 +76,8 @@ enum imx_thermal_trip {
 	IMX_TRIP_NUM,
 };
 
+struct imx8mm_tmu *g_tmu=NULL;
+
 static int imx8mm_tmu_get_temp(void *data, int *temp)
 {
 	struct tmu_sensor *sensor = data;
@@ -120,6 +126,21 @@ static int tmu_get_temp(void *data, int *temp)
 
 	return tmu->socdata->get_temp(data, temp);
 }
+
+#ifdef CONFIG_IMX8MM_THERMAL_MONITOR
+int imx8mm_get_temp(int *temp, uint32_t sensor_id) {
+	int ret = 0;
+
+	if ( sensor_id > MAX_SENSOR_NUMBER - 1)
+		ret = -EINVAL;
+
+	ret = tmu_get_temp((void *)(&g_tmu->sensors[sensor_id]), temp);
+	if (ret)
+		dev_err(NULL, "Failed to get temprature\n");
+	return ret;
+}
+EXPORT_SYMBOL_GPL(imx8mm_get_temp);
+#endif
 
 static int tmu_get_trend(void *p, int trip, enum thermal_trend *trend)
 {
@@ -192,6 +213,10 @@ static int imx8mm_tmu_probe(struct platform_device *pdev)
 			   data->num_sensors), GFP_KERNEL);
 	if (!tmu)
 		return -ENOMEM;
+
+#ifdef CONFIG_IMX8MM_THERMAL_MONITOR
+	g_tmu = tmu;
+#endif
 
 	tmu->socdata = data;
 

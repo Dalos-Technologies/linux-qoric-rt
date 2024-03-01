@@ -320,6 +320,14 @@ config QORIQ_THERMAL_INTERRUPT
       high and critial high has been programmed based upon thermal interrupt
       will be generated.
 
+config IMX8MM_THERMAL_MONITOR
+	tristate "IMX8MM Thermal Monitoring Unit Get Temperature"
+	depends on THERMAL_OF
+		 depends on HAS_IOMEM
+	help
+		Support for Thermal Monitoring Unit (TMU) found on IMX
+		platforms.
+
 config SPEAR_THERMAL
 	tristate "SPEAr thermal sensor driver"
 	depends on PLAT_SPEAR || COMPILE_TEST
