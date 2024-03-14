@@ -222,9 +222,14 @@ struct clk_hw *imx8m_clk_hw_composite_flags(const char *name,
 
 	div->lock = &imx_ccm_lock;
 	div->flags = CLK_DIVIDER_ROUND_CLOSEST;
-
 	/* skip registering the gate ops if M4 is enabled */
+#ifdef RFNM_BOOTCONFIG
+	// need to force skip gate registration to boot m7 from remoteproc without uboot help...
+	// (there goes two hours)
+	if(1) {
+#else
 	if (imx_src_is_m4_enabled() || mcore_booted) {
+#endif
 		gate_hw = NULL;
 	} else {
 		gate = kzalloc(sizeof(*gate), GFP_KERNEL);
