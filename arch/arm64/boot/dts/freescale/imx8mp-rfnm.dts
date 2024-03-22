@@ -22,6 +22,12 @@
 		la9310-hrst-gpios = <&gpio3 14 GPIO_ACTIVE_HIGH>;
     };
 
+/* Debug code for tti
+	la9310_tti: la9310_tti@0 {
+		compatible = "la9310_tti";
+		la9310-tti-gpio = <&gpio5 1 GPIO_ACTIVE_HIGH>;
+	};
+*/
 
 	memory@40000000 {
 		device_type = "memory";
