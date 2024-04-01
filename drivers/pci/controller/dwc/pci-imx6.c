@@ -115,6 +115,7 @@ struct imx6_pcie {
 	int			clkreq_gpio;
 	int			dis_gpio;
 	int			reset_gpio;
+	bool			suspended;
 	bool			gpio_active_high;
 	struct clk		*pcie_bus;
 	struct clk		*pcie_phy;
@@ -277,6 +278,10 @@ struct imx6_pcie {
 
 static int imx6_pcie_cz_enabled;
 static void imx6_pcie_ltssm_disable(struct device *dev);
+#ifdef CONFIG_PM_SLEEP
+static int imx6_pcie_resume_noirq(struct device *dev);
+static int imx6_pcie_suspend_noirq(struct device *dev);
+#endif
 
 static bool imx6_pcie_readable_reg(struct device *dev, unsigned int reg)
 {
@@ -2137,8 +2142,35 @@ static ssize_t bus_freq_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(bus_freq);
 
+#ifdef CONFIG_PM_SLEEP
+static ssize_t pcie_dis_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	u32 val;
+
+	ret = sscanf(buf, "%x\n", &val);
+	if (ret != 1)
+		return -EINVAL;
+
+	if (val) {
+		dev_info(dev, "suspend pcie device\n");
+		imx6_pcie_suspend_noirq(dev);
+	} else {
+		dev_info(dev, "resume pcie device\n");
+		imx6_pcie_resume_noirq(dev);
+	}
+
+	return count;
+}
+static DEVICE_ATTR_WO(pcie_dis);
+#endif
+
 static struct attribute *imx_pcie_rc_attrs[] = {
 	&dev_attr_bus_freq.attr,
+#ifdef CONFIG_PM_SLEEP
+	&dev_attr_pcie_dis.attr,
+#endif
 	NULL
 };
 
@@ -2248,8 +2280,12 @@ static int imx6_pcie_suspend_noirq(struct device *dev)
 {
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
 
+	if (imx6_pcie->suspended)
+		return 0;
+
 	if (!(imx6_pcie->drvdata->flags & IMX6_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
+
 	if (unlikely(imx6_pcie->drvdata->variant == IMX6Q)) {
 		/*
 		 * L2 can exit by 'reset' or Inband beacon (from remote EP)
@@ -2266,6 +2302,7 @@ static int imx6_pcie_suspend_noirq(struct device *dev)
 		imx6_pcie_clk_disable(imx6_pcie);
 	}
 
+	imx6_pcie->suspended = true;
 	return 0;
 }
 
@@ -2275,8 +2312,12 @@ static int imx6_pcie_resume_noirq(struct device *dev)
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
 	struct pcie_port *pp = &imx6_pcie->pci->pp;
 
+	if (!imx6_pcie->suspended)
+		return 0;
+
 	if (!(imx6_pcie->drvdata->flags & IMX6_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
+
 	if (unlikely(imx6_pcie->drvdata->variant == IMX6Q)) {
 		/*
 		 * L2 can exit by 'reset' or Inband beacon (from remote EP)
@@ -2300,6 +2341,7 @@ static int imx6_pcie_resume_noirq(struct device *dev)
 			imx6_pcie_clkreq_enable(imx6_pcie);
 	}
 
+	imx6_pcie->suspended = false;
 	return 0;
 }
 #endif
