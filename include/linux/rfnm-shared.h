@@ -22,12 +22,24 @@ extern int la9310_read_dtb_node_mem_region(const char *node_name, struct resourc
  */
 #define __rfnm_packed __attribute__((__packed__))
 
+#define RFNM_LA_BAR0_PHY_ADDR (0x18000000)
+#define RFNM_LA_DCS_PHY_ADDR (RFNM_LA_BAR0_PHY_ADDR + 0x1040000)
+#define RFNM_LA_GPOUT_PHY_ADDR (RFNM_LA_BAR0_PHY_ADDR + 0x1000580)
+
+#define HSDAC_CFGCTL1 ( 0x210 >> 2 )
+
+#define GP_OUT_4 ( 4 )
+#define GP_OUT_7 ( 7 )
+
+#define RFNM_ADC_MAP (int[]){0x2, 0x4, 0x1, 0x3}
 
 #define RFNM_TX (0)
 #define RFNM_RX (1)
 
 
 #define MHZ_TO_HZ * 1000 * 1000ul
+#define HZ_TO_MHZ(Hz) (Hz / (1000ul * 1000ul))
+#define HZ_TO_KHZ(Hz) (Hz / 1000ul)
 
 /*
 struct rfnm_dgb_tx_ch {
@@ -231,6 +243,10 @@ struct rfnm_dgb {
 	void * rx_ch_get;
 	void * tx_ch_set;
 	void * tx_ch_get;
+
+	uint8_t dac_ifs;
+	uint8_t adc_iqswap[2];
+	uint8_t dac_iqswap[2];
 };
 
 struct rfnm_m7_dgb {
