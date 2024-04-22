@@ -20,6 +20,7 @@
         compatible = "la9310_wdog";
         la9310-trst-gpios = <&gpio3 9 GPIO_ACTIVE_HIGH>;
 		la9310-hrst-gpios = <&gpio3 14 GPIO_ACTIVE_HIGH>;
+		la9310-bootstrap-en-gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
     };
 
 /* Debug code for tti
