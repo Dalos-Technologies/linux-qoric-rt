@@ -23,12 +23,13 @@
 		la9310-bootstrap-en-gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
     };
 
-/* Debug code for tti
+/* Will be used only when the gpio is directly connect to the A53 core and
+ * is used by the tti sub driver.
+ */
 	la9310_tti: la9310_tti@0 {
 		compatible = "la9310_tti";
 		la9310-tti-gpio = <&gpio5 1 GPIO_ACTIVE_HIGH>;
 	};
-*/
 
 	memory@40000000 {
 		device_type = "memory";
