@@ -50,7 +50,7 @@
 				reg = <0 0x92400000 0 0x4000000>;
 				compatible = "shared-dma-pool";
 			};
-			iqflood: iq@96400000 {
+			iqflood: iqflood@96400000 {
 				reg = <0 0x96400000 0 0xD000000>;
 				//compatible = "shared-dma-pool";
 				no-map;
