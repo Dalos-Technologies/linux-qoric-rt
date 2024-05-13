@@ -327,6 +327,11 @@ static int rfnm_si5510_probe(struct i2c_client *client)
 		return ret;
 	}
 
+	if(device_property_read_bool(&client->dev, "rfnm,skip-5510-init-quirk")) {
+		cfg->pcie_clock_ready = 1;
+		printk("RFNM: skip-5510-init-quirk\n");
+		return 0;
+	}
 	// when rebooted without hard power reset, this memory section doesn't get inited to 0xff...
 	// move memory reset to uboot?
 
@@ -429,6 +434,9 @@ static int rfnm_si5510_probe(struct i2c_client *client)
 	} else if (can_use_si5510_config(cfg, RFNM_DAUGHTERBOARD_LIME, RFNM_DAUGHTERBOARD_GRANITA)) {
 		rfnm_si5510_host_load(client, Q_Plan4_boot_bin, Q_Plan4_boot_bin_len, CMD_BUFFER_SIZE);
 		printk("RFNM: Selected plan 4 RFNM_DAUGHTERBOARD_LIME, RFNM_DAUGHTERBOARD_GRANITA\n");
+	} else if(can_use_si5510_config(cfg, RFNM_DAUGHTERBOARD_BREAKOUT, RFNM_DAUGHTERBOARD_BREAKOUT)) {
+		rfnm_si5510_host_load(client, Q_Plan1_boot_bin, Q_Plan1_boot_bin_len, CMD_BUFFER_SIZE);
+		printk("RFNM: Breakout board detected: Selected plan 1 RFNM_DAUGHTERBOARD_GRANITA, RFNM_DAUGHTERBOARD_GRANITA\n");
 	} else {
 		printk("RFNM: Couldn't find Si5510 config to work with the installed daughterboards\n");
 	}

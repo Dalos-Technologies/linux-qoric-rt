@@ -29,18 +29,15 @@ typedef   signed char        int8_t;
 
 
 
-void rfnm_bootconfig_read_eeprom(struct i2c_client *client, uint8_t addr, uint8_t *buf)
-{
+void rfnm_bootconfig_read_eeprom(struct i2c_client *client, uint8_t addr, uint8_t * buf) {
 
 	i2c_master_send(client, &addr, 1);
 	i2c_master_recv(client, buf, 1);
 }
 
-int rfnm_bootconfig_write_eeprom(struct i2c_client *client, uint8_t addr, uint8_t val)
-{
+int rfnm_bootconfig_write_eeprom(struct i2c_client *client, uint8_t addr, uint8_t val) {
 
 	uint8_t write[2];
-
 	write[0] = addr;
 	write[1] = val;
 
@@ -50,8 +47,8 @@ int rfnm_bootconfig_write_eeprom(struct i2c_client *client, uint8_t addr, uint8_
 retry:
 	ret = i2c_master_send(client, write, 2);
 
-	if (ret < 0) {
-		if (retry_id++ < 30) {
+	if(ret < 0) {
+		if(retry_id++ < 30) {
 			goto retry;
 		} else {
 			return -1;
@@ -61,25 +58,23 @@ retry:
 	return 0;
 }
 
-int rfnm_load_board_info(struct device *dev, struct rfnm_eeprom_data *eeprom_data)
-{
-
+int rfnm_load_board_info(struct device *dev, struct rfnm_eeprom_data *eeprom_data) {
+	
 	int i, ret;
 	uint8_t i2cbuf;
 	uint8_t *eeprom_data_ptr;
-
-	eeprom_data_ptr = (uint8_t *) eeprom_data;
+	eeprom_data_ptr = (uint8_t*) eeprom_data;
 	struct i2c_client *client = to_i2c_client(dev);
 
 	memset(eeprom_data, 0, sizeof(*eeprom_data));
-
-	for (i = 0; i < sizeof(*eeprom_data); i++) {
+	
+	for(i = 0; i < sizeof(*eeprom_data); i++) {
 		rfnm_bootconfig_read_eeprom(client, i, &i2cbuf);
 		//printk("RFNM: %02x\n", i2cbuf);
 		*(eeprom_data_ptr + i) = i2cbuf;
 	}
 
-	if (eeprom_data->crc != crc32(0x80000000, eeprom_data_ptr, sizeof(*eeprom_data) - 4)) {
+	if(eeprom_data->crc != crc32(0x80000000, eeprom_data_ptr, sizeof(*eeprom_data) - 4)) {
 		//printk("RFNM: crc mismatch, eeprom read failed %x %x\n", eeprom_data->crc, crc32(0x80000000, eeprom_data_ptr, sizeof(*eeprom_data) - 4));
 		return -1;
 	}
@@ -88,44 +83,67 @@ int rfnm_load_board_info(struct device *dev, struct rfnm_eeprom_data *eeprom_dat
 }
 
 
-static ssize_t rfnm_show_board_info_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
+static ssize_t rfnm_show_board_info_show(struct device *dev, struct device_attribute *attr, char *buf) {
 
 	struct i2c_client *client = to_i2c_client(dev);
+	struct i2c_adapter *adapter = client->adapter;
+	int adapter_nr = i2c_adapter_id(adapter);
 	uint8_t i2cbuf;
 	int z;
 	struct rfnm_eeprom_data eeprom_data;
 
-	if (rfnm_load_board_info(dev, &eeprom_data)) {
+	if(rfnm_load_board_info(dev, &eeprom_data)) {
 		return snprintf(buf, PAGE_SIZE, "Failed to read eeprom\n");
 	} else {
-		return snprintf(buf, PAGE_SIZE, "board id %d revision %d serial %s\n", eeprom_data.board_id, eeprom_data.board_revision_id, eeprom_data.serial_number);
+		if(adapter_nr) {
+			return snprintf(buf, PAGE_SIZE, "board id %d revision %d serial %s\n", eeprom_data.board_id, eeprom_data.board_revision_id, eeprom_data.serial_number);
+		} else {
+			return snprintf(buf, PAGE_SIZE, "board id %d revision %d serial %s mac-addr %02x:%02x:%02x:%02x:%02x:%02x\n", 
+						eeprom_data.board_id, eeprom_data.board_revision_id, eeprom_data.serial_number,
+						eeprom_data.mac_addr[0], eeprom_data.mac_addr[1], eeprom_data.mac_addr[2], eeprom_data.mac_addr[3], eeprom_data.mac_addr[4], eeprom_data.mac_addr[5]);
+		}
+
+		
 	}
 }
 
 static DEVICE_ATTR_RO(rfnm_show_board_info);
 
-static ssize_t rfnm_factory_use_only_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
-{
+static ssize_t rfnm_factory_use_only_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
 
 	struct i2c_client *client = to_i2c_client(dev);
+	struct i2c_adapter *adapter = client->adapter;
+	int adapter_nr = i2c_adapter_id(adapter);
 
-	if (count != 15) {
-		//printk("RFNM: Invalid length at %d\n", count);
-		return -EINVAL;
+	//01-02-abcdefgh
+	//01-02-abcdefgh-00:00:00:00:00:00
+
+	if(adapter_nr) {
+		if(count != 15) {
+			//printk("RFNM: Invalid length at %d\n", count);
+			return -EINVAL;
+		}
+	} else {
+		if(count != (15 + 18)) {
+			return -EINVAL;
+		}
+
+		if(buf[14] != '-' || buf[17] != ':' || buf[20] != ':' || buf[23] != ':' || buf[26] != ':' || buf[29] != ':') {
+			return -EINVAL;
+		}
 	}
-
-	if (buf[2] != '-' || buf[5] != '-') {
+	
+	if(buf[2] != '-' || buf[5] != '-') {
 		//printk("RFNM: invalid chars in string %c %c\n", &buf[2], &buf[5]);
 		return -EINVAL;
 	}
 
-	const char __user tmpstr[10];
+	const char __user tmpstr[20];
 	uint32_t tmpval;
 	struct rfnm_eeprom_data eeprom_data;
 	int i, ret;
 
-	memset((uint8_t *) &eeprom_data, 0, sizeof(eeprom_data));
+	memset((uint8_t*) &eeprom_data, 0, sizeof(eeprom_data));
 
 	eeprom_data.magic_header[0] = 0x34;
 	eeprom_data.magic_header[1] = 0x26;
@@ -155,18 +173,25 @@ static ssize_t rfnm_factory_use_only_store(struct device *dev, struct device_att
 	memcpy(&eeprom_data.serial_number, &buf[6], 8);
 	eeprom_data.serial_number[8] = 0;
 
+	if(!adapter_nr) {
+		memset(&tmpstr, 0, 20);
+		memcpy(&tmpstr, &buf[15], 17);
+		sscanf(&tmpstr[0], "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", 
+				&eeprom_data.mac_addr[0], &eeprom_data.mac_addr[1], &eeprom_data.mac_addr[2], 
+				&eeprom_data.mac_addr[3], &eeprom_data.mac_addr[4], &eeprom_data.mac_addr[5]);
+	}
+
 	//printk("RFNM: board id %d revision %d serial %s\n", eeprom_data.board_id, eeprom_data.board_revision_id, eeprom_data.serial_number);
 
 	uint8_t *eeprom_data_ptr;
-
-	eeprom_data_ptr = (uint8_t *) &eeprom_data;
+	eeprom_data_ptr = (uint8_t*) &eeprom_data;
 
 	eeprom_data.crc = crc32(0x80000000, eeprom_data_ptr, sizeof(eeprom_data) - 4);
-
-	for (i = 0; i < sizeof(eeprom_data); i++) {
+	
+	for(i = 0; i < sizeof(eeprom_data); i++) {
 		//printk("RFNM: %d %02x\n", i, eeprom_data_ptr[i]);
 		ret = rfnm_bootconfig_write_eeprom(client, i, *(eeprom_data_ptr + i));
-		if (ret < 0) {
+		if(ret < 0) {
 			printk("RFNM: Write to daughterboard failed");
 			return -ENODEV;
 		}
@@ -178,14 +203,13 @@ static ssize_t rfnm_factory_use_only_store(struct device *dev, struct device_att
 static DEVICE_ATTR_WO(rfnm_factory_use_only);
 
 
-static int rfnm_bootconfig_probe(struct i2c_client *client)
-{
+static int rfnm_bootconfig_probe(struct i2c_client *client) {
 
 	struct i2c_adapter *adapter = client->adapter;
-
+	
 	struct rfnm_bootconfig *cfg;
 	struct rfnm_eeprom_data *eeprom_data;
-        struct resource mem_res;
+	struct resource mem_res;
 	char node_name[10];
 	int ret;
 
@@ -199,14 +223,16 @@ static int rfnm_bootconfig_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	if (adapter->nr == 0) {
+	if(adapter->nr == 0) {
 		eeprom_data = &cfg->motherboard_eeprom;
-		if (!rfnm_load_board_info(&client->dev, eeprom_data)) {
-			printk("RFNM: Motherboard id %d revision %d serial %s\n", eeprom_data->board_id, eeprom_data->board_revision_id, eeprom_data->serial_number);
+		if(!rfnm_load_board_info(&client->dev, eeprom_data)) {
+			printk("RFNM: Motherboard id %d revision %d serial %s mac-addr %02x:%02x:%02x:%02x:%02x:%02x\n", 
+			eeprom_data->board_id, eeprom_data->board_revision_id, eeprom_data->serial_number,
+			eeprom_data->mac_addr[0], eeprom_data->mac_addr[1], eeprom_data->mac_addr[2], eeprom_data->mac_addr[3], eeprom_data->mac_addr[4], eeprom_data->mac_addr[5]);
 		}
 	} else {
 		eeprom_data = &cfg->daughterboard_eeprom[adapter->nr - 1];
-		if (!rfnm_load_board_info(&client->dev, eeprom_data)) {
+		if(!rfnm_load_board_info(&client->dev, eeprom_data)) {
 			printk("RFNM: Daughterboard detected on slot %d, board id %d revision %d serial %s\n", adapter->nr, eeprom_data->board_id, eeprom_data->board_revision_id, eeprom_data->serial_number);
 			cfg->daughterboard_present[adapter->nr - 1] = RFNM_DAUGHTERBOARD_PRESENT;
 		} else {
@@ -214,7 +240,7 @@ static int rfnm_bootconfig_probe(struct i2c_client *client)
 		}
 	}
 
-
+	
 
 	int err;
 
@@ -231,8 +257,7 @@ static int rfnm_bootconfig_probe(struct i2c_client *client)
 	return 0;
 }
 
-static int rfnm_bootconfig_remove(struct i2c_client *client)
-{
+static int rfnm_bootconfig_remove(struct i2c_client *client) {
 	device_remove_file(&client->dev, &(dev_attr_rfnm_show_board_info));
 	device_remove_file(&client->dev, &(dev_attr_rfnm_factory_use_only));
 	return 0;
