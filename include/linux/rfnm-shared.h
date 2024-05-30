@@ -25,6 +25,11 @@ extern int la9310_read_dtb_node_mem_region(const char *node_name, struct resourc
 
 #define RFNM_LA_BAR0_PHY_ADDR (0x18000000)
 
+#define RFNM_LA_DMEM_PHY_ADDR (RFNM_LA_BAR2_PHY_ADDR + 0x400000)
+#define RFNM_LA_IPPU_PHY_ADDR (RFNM_LA_BAR2_PHY_ADDR + 0x500000)
+
+
+
 #define RFNM_LA_DCS_PHY_ADDR (RFNM_LA_BAR0_PHY_ADDR + 0x1040000)
 
 #define HSDAC_CFGCTL1 ( 0x210 >> 2 )
@@ -174,5 +179,7 @@ int rfnm_la9310_stream(uint8_t tx, uint8_t *rx);
 int rfnm_la9310_stream(uint8_t tx, uint8_t *rx);
 void rfnm_populate_dev_status(struct rfnm_dev_status * r_stat);
 void rfnm_restart_sm(int hard);
+
+
 
 #endif
