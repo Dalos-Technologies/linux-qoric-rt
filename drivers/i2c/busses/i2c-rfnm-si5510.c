@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
+/* Copyright 2024 NXP
+ */
 
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -243,8 +245,66 @@ static ssize_t rfnm_ext_ref_out_store(struct device *dev, struct device_attribut
 
 static DEVICE_ATTR_WO(rfnm_ext_ref_out);
 
+static ssize_t
+si5510_freq_correction_store(struct device *dev,
+                        struct device_attribute *attr,
+                        const char *buf, size_t count) {
+	int rc = 0,len;
+	unsigned long long val;
+	int cnt;
+	int ctr;
+	uint8_t i2c_read_buf[32];
+	uint8_t freq_correction_request[8];
+	uint32_t step_size;
+	struct i2c_client *client = to_i2c_client(dev);
+	#define SYNC_TIMING_DEVICE_MCU_PORTAL_ADDR        ( 0xF00F )
+	#define SYNC_TIMING_DEVICE_VARIABLE_OFFSET_DCO_CMD    ( 0x24 )
 
+	rc = kstrtoull(buf, 0, &val);
+	if (rc) {
+		printk("si5510: %s is not hex or decimal\n", buf);
+		goto out;
+	}
+	step_size = (uint32_t)val;
+	rfnm_si5510_cts(client);
+	cnt=0;
+	freq_correction_request[cnt++] = (SYNC_TIMING_DEVICE_MCU_PORTAL_ADDR >> 8 ) & 0xFF;
+	freq_correction_request[cnt++] = (SYNC_TIMING_DEVICE_MCU_PORTAL_ADDR & 0xFF);
+	freq_correction_request[cnt++] = SYNC_TIMING_DEVICE_VARIABLE_OFFSET_DCO_CMD;
+	freq_correction_request[cnt++] = (val >> 32 ) & 0xff;
 
+	for(ctr = 0; ctr < 4; ctr++)
+		freq_correction_request[cnt++] =   (step_size >> (ctr << 3)) & 0xFF;
+	if(!((freq_correction_request[3] == 0x01 ) || (freq_correction_request[3] == 0x02) \
+				|| (freq_correction_request[3] == 0x08 ))) {
+		printk("Si5510: Invalid Divider select 0x%x \r\n",\
+			(val >> 32 ) & 0xff);
+		goto out;
+	}
+	rfnm_si5510_i2c_write(client, freq_correction_request, cnt);
+	rfnm_si5510_i2c_read(client, &i2c_read_buf[0], 2);
+
+	if(((i2c_read_buf[0] & 0xf0 ) == 0x80) && ((i2c_read_buf[1] & 0x01 ) == 0x00)) {
+			printk("Freq Correction (Hex 0x%x- Dec %d) Div Sel 0x%x  OK \r\n", \
+					step_size,step_size,(val >> 32 ) & 0xff);
+	}
+	else {
+		if((i2c_read_buf[0] & 0x70 ) != 0x00)
+			printk("HWERR/APIERR/FWERR error occur \
+				error code[0] = 0x%x code[1] = 0x%x \r\n", i2c_read_buf[0],i2c_read_buf[1]);
+		else if((i2c_read_buf[1] & 0x01 ) == 0x01)
+			printk("Frequency Correction OUT_OF_RANGE error \
+				code[0] = 0x%x code[1] = 0x%x \r\n", i2c_read_buf[0],i2c_read_buf[1]);
+		else
+			printk("Frequency Correction unknow error occur \
+				code[0] = 0x%x code[1] = 0x%x \r\n", i2c_read_buf[0],i2c_read_buf[1]);
+	}
+
+	out:
+		return strnlen(buf, count);
+}
+
+static DEVICE_ATTR_WO(si5510_freq_correction);
 
 struct gpio_desc *si5510_rst_gpio;
 struct gpio_desc *la9310_trst_gpio;
@@ -533,7 +593,10 @@ repeat_search:
 		printk("RFNM: failed to create device file for rfnm_ext_ref_out");
 	}
 	//device_remove_file(&client->dev, &(dev_attr_rfnm_show_board_info));
-
+	err = device_create_file(&client->dev, &dev_attr_si5510_freq_correction);
+	if (err < 0) {
+		printk("RFNM: failed to create device file for si5510_freq_correction");
+	}
 	return 0;
 
 }
