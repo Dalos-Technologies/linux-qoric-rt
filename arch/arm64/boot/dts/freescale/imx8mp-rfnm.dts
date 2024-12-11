@@ -47,11 +47,11 @@
            // /delete-note/ isp0_reserved;
 			*/
 			la93: la93@92400000 {
-				reg = <0 0x92400000 0 0x4000000>;
+				reg = <0 0xC0000000 0 0x04000000>;
 				compatible = "shared-dma-pool";
 			};
 			iqflood: iqflood@96400000 {
-				reg = <0 0x96400000 0 0xD000000>;
+				reg = <0 0xC4000000 0 0x0D000000>;
 				//compatible = "shared-dma-pool";
 				//no-map;
 				//compatible = "removed-dma-pool";
