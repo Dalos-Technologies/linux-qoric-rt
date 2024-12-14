@@ -46,16 +46,18 @@
             /delete-node/ dsp_vdev0buffer;
            // /delete-note/ isp0_reserved;
 			*/
-			la93: la93@92400000 {
-				reg = <0 0xC0000000 0 0x04000000>;
+			la93: la93@C0000000 {
+				reg = <0 0xC0000000 0 0x10000000>;
 				compatible = "shared-dma-pool";
+				no-map;
+				linux,cma-default;
 			};
-			iqflood: iqflood@96400000 {
-				reg = <0 0xC4000000 0 0x0D000000>;
+/*			iqflood: iqflood@C4000000 {
+				reg = <0 0xC4000000 0 0x0C000000>;
 				//compatible = "shared-dma-pool";
 				//no-map;
 				//compatible = "removed-dma-pool";
-			};
+			};*/
 			bootconfig: bootconfig@bec00000 {
 				reg = <0 0xbec00000 0 0x400000>;
 				// uboot was modified to clear this memory (with 0xff)
