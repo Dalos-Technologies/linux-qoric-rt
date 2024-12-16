@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 15
 SUBLEVEL = 71
-EXTRAVERSION =
+EXTRAVERSION = -rt51+gab87e3450541
 NAME = Trick or Treat
 
 # *DOCUMENTATION*
@@ -1219,8 +1219,10 @@ targets := vmlinux
 # make sure no implicit rule kicks in
 $(sort $(vmlinux-deps) $(subdir-modorder)): descend ;
 
+#echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
+
 filechk_kernel.release = \
-	echo "$(KERNELVERSION)$$($(CONFIG_SHELL) $(srctree)/scripts/setlocalversion $(srctree))"
+	echo "$(KERNELVERSION)"
 
 # Store (new) KERNELRELEASE string in include/config/kernel.release
 include/config/kernel.release: FORCE
